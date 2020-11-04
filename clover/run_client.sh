@@ -42,7 +42,7 @@ ibdev_id=0
 ibdev_base_port=1
 NR_CN=1
 NR_MN=1
-MEMCACHED_SERVER_IP="137.110.222.243"
+MEMCACHED_SERVER_IP="137.110.222.47"
 
 LD_PRELOAD=libhugetlbfs.so HUGETLB_MORECORE=yes				\
 ./init -C 1 -L 2							\

@@ -1,4 +1,5 @@
 #include "mitsume_benchmark.h"
+#include "zipf.cc"
 
 #define MITSUME_TARGET_KEY 10
 
@@ -18,17 +19,22 @@ void mitsume_test_read_ycsb(const char *input_string, int **op_key,
                             uint64_t **target_key) {
   uint64_t *key = new uint64_t[MITSUME_YCSB_SIZE];
   int *op = new int[MITSUME_YCSB_SIZE];
+  MITSUME_PRINT("Preparing to open file: %s\n",input_string);
   FILE *fp = fopen(input_string, "r");
+  assert(fp != NULL);
   ssize_t read;
   char *line = NULL;
   int i = 0;
   size_t len = 0;
+  MITSUME_PRINT("TESTING READ\n");
   while ((read = getline(&line, &len, fp)) != -1) {
     sscanf(line, "%d %llu\n", &op[i], (unsigned long long int *)&key[i]);
+    //TODO start here and print the key tomorrow
     i++;
     if (i == MITSUME_YCSB_SIZE)
       break;
   }
+  MITSUME_PRINT("DONE READ\n");
   *target_key = key;
   *op_key = op;
 }
@@ -223,14 +229,16 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
   int test_size = MITSUME_BENCHMARK_SIZE;
   int *op_key = NULL;
   long local_op = 0;
-  chrono::nanoseconds before, after;
+ // chrono::nanoseconds before, after;
   mitsume_key *target_key = NULL;
   write = (char *)local_inf->user_input_space[0];
   read = (char *)local_inf->user_output_space[0];
   target_set =
       thread_metadata->thread_id + (client_id)*MITSUME_BENCHMARK_THREAD_NUM;
 
-  stick_this_thread_to_core(2 * thread_metadata->thread_id);
+  MITSUME_PRINT("Alive on thread %d\n",thread_metadata->thread_id);
+
+  stick_this_thread_to_core((2 * thread_metadata->thread_id) + 1);
 
   mitsume_sync_barrier_global();
   memset(read, 0, 4096);
@@ -251,17 +259,24 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
     exit(1);
   }
 
+
+  MITSUME_PRINT("Reading from %s\n",ycsb_string);
+
+  MITSUME_PRINT("PREPPING FOR READ\n");
   mitsume_test_read_ycsb(ycsb_string, &op_key, &target_key);
   MITSUME_INFO("%d read %d\n", thread_metadata->thread_id, target_set);
 
   if (!op_key || !target_key) {
     MITSUME_INFO("check here %d %d", thread_metadata->thread_id, client_id);
   }
+
+  //This just assumes that all of the keys are in linear order.
   if (thread_metadata->thread_id == 0) {
     if (client_id == 0) {
       MITSUME_PRINT("------\n");
-      for (i = 1; i <= key_range; i++) {
+      for (i = 0; i < key_range; i++) {
         key = i;
+        //key = (uint64_t)target_key[i];
         memset(write, 0x31 + (key % 30), MITSUME_BENCHMARK_SIZE);
         ret = mitsume_tool_open(thread_metadata, key, write,
                                 MITSUME_BENCHMARK_SIZE,
@@ -273,6 +288,20 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
       MITSUME_PRINT("finish open\n");
     }
   }
+  
+  switch (MITSUME_YCSB_DISTRIBUTION_MODE) {
+  case MITSUME_YCSB_DISTRIBUTION_MODE_UNIFORM:
+    MITSUME_PRINT("Uniform Distribution\n");
+    break;
+  case MITSUME_YCSB_DISTRIBUTION_MODE_ZIPF:
+    MITSUME_PRINT("Zipf Distribution\n");
+    rand_val(1.0);
+    for (int i=0;i<MITSUME_YCSB_KEY_RANGE;i++) {
+      target_key[i] = (uint64_t)zipf(2.0,MITSUME_YCSB_KEY_RANGE);
+    }
+    break;
+  }
+
   mitsume_sync_barrier_global();
   if (thread_metadata->thread_id == 0)
     MITSUME_PRINT("finish barrier\n");
@@ -286,25 +315,40 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
   MITSUME_PRINT("test size: %d\n", test_size);
 
   while (!end_flag) {
-    key = (uint64_t)target_key[i];
+    if (MITSUME_YCSB_DISTRIBUTION_MODE == MITSUME_YCSB_DISTRIBUTION_MODE_UNIFORM) {
+      key = (uint64_t)target_key[i];
+    } else if (MITSUME_YCSB_DISTRIBUTION_MODE == MITSUME_YCSB_DISTRIBUTION_MODE_ZIPF) {
+        key = (uint64_t)zipf(0.99,MITSUME_YCSB_KEY_RANGE);
+    }
+    if (key == 0) {
+      i++;
+      continue;
+    }
+    //cout << "key: " << key << endl;
+    //MITSUME_PRINT("key: %"PRIu64"\n",key);
     if (MITSUME_YCSB_VERIFY_LEVEL)
       memset(write, 0x31 + (key % 30), MITSUME_BENCHMARK_SIZE);
     if (op_key[i] == 0) {
-      mitsume_tool_read(thread_metadata, key, read, &read_size,
+      ret = mitsume_tool_read(thread_metadata, key, read, &read_size,
                         MITSUME_TOOL_KVSTORE_READ);
-      if (MITSUME_YCSB_VERIFY_LEVEL)
-        if (read[0] != write[0])
+      if (MITSUME_YCSB_VERIFY_LEVEL) {
+        if (read[0] != write[0]) {
           MITSUME_PRINT("doesn't match %c %c\n", read[0], write[0]);
-    } else
+        }
+      }
+    } else {
       ret = mitsume_tool_write(thread_metadata, key, write, test_size,
                                MITSUME_TOOL_KVSTORE_WRITE);
-    if (ret != MITSUME_SUCCESS)
+    }
+    if (ret != MITSUME_SUCCESS) {
       MITSUME_INFO("error %lld %d\n", (unsigned long long int)key, ret);
+    }
     // if(i>0&&i%200000==0)
     //    MITSUME_PRINT("%d-%d write\n", thread_metadata->thread_id, i);
     i++;
-    if (i == MITSUME_YCSB_SIZE)
+    if (i >= MITSUME_YCSB_SIZE) {
       i = 0;
+    }
     local_op++;
   }
   output_lock.lock();
@@ -484,15 +528,20 @@ int mitsume_benchmark_thread(int thread_num,
   assert(MITSUME_BENCHMARK_SIZE);
   assert(MITSUME_BENCHMARK_TIME);
 
+  MITSUME_PRINT("About to fork!\n");
+
   if (thread_num > MITSUME_CLT_CONSUMER_NUMBER) {
     die_printf("thread_num is larger than max clt number\n");
     exit(1);
   }
+  MITSUME_PRINT("\nSleeping!!\n");
   sleep(1);
   for (i = 0; i < thread_num; i++) {
+    MITSUME_PRINT("Forking thread %d\n", i);
     pthread_create(&thread_job[i], NULL, fun_ptr,
                    &local_ctx_clt->thread_metadata[i]);
   }
+  MITSUME_PRINT("\nWAITING for the ready flag\n");
   while (ready_flag == 0)
     ;
   start_flag = 1;
@@ -505,12 +554,22 @@ int mitsume_benchmark_thread(int thread_num,
   for (i = 0; i < thread_num; i++) {
     pthread_join(thread_job[i], NULL);
   }
-  // MITSUME_PRINT("all %d threads are finished\n", thread_num);
+
+  
+  MITSUME_PRINT("all %d threads are finished\n", thread_num);
   cout << total_op.load() << endl;
-  cout << fixed << "throughput "
-       << ((float)total_op.load() / (after - before).count()) * 1000
+  float finaltput = ((float)total_op.load() / (after - before).count()) * 1000;
+  cout << fixed << "throughput() "
+       << finaltput
        << " /seconds" << endl;
   // mitsume_stat_show();
+
+  //printf("%f,%d,%d,%s,%d,%s\n",finaltput,thread_num,MITSUME_YCSB_KEY_RANGE,"uniform_random",MITSUME_YCSB_OP_MODE,"@TAG@\n");
+  //Output the results for data processing
+  cout << "Throughput,threads,keyspace,distribution,ycsb" << endl;
+  cout << finaltput << "," << thread_num << "," << MITSUME_YCSB_KEY_RANGE << "," << "zipf," << MITSUME_YCSB_OP_MODE << ",@TAG@" << endl;
+
+  cout << "\n";
   return MITSUME_SUCCESS;
 }
 

@@ -285,11 +285,13 @@ void mitsume_sync_barrier_global(void) {
             local_barrier_count, local_barrier_client_id);
     memcached_publish(memcached_string, &ret, sizeof(int));
     for (i = 0; i < local_barrier_num_global_client; i++) {
+      MITSUME_PRINT("before -- %s\n", memcached_string);
       sprintf(memcached_string, MITSUME_MEMCACHED_BARRIER_STRING,
               local_barrier_count, i);
       ret_int = memcached_get_published_size(memcached_string, sizeof(int));
-      // MITSUME_PRINT("%s\n", memcached_string);
+      MITSUME_PRINT("%s\n", memcached_string);
       free(ret_int);
+      MITSUME_PRINT("Completed memcached barrier!\n");
     }
     local_barrier_count++;
   }

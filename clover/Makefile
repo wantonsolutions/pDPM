@@ -12,14 +12,20 @@ MICA_HOME := ../../mica2/src
 
 INC	:= -I ${HOTS_HOME} -I ${MICA_HOME}
 
+STEWFLAGS := -DMITSUME_BENCHMARK_THREAD_NUM=${CLOVER_THREADS} \
+		-DMITSUME_YCSB_KEY_RANGE=${CLOVER_KEY_RANGE} \
+   		-DMITSUME_YCSB_OP_MODE=${CLOVER_YCSB_OP_MODE} \
+
 #DEBUG := -DNDEBUG
 CPPFLAGS := ${ENABLE_DGB} ${LTO} -O2 ${DEBUG} -std=c++14 ${INC} -Wall -Werror -g \
 	-Wno-unused-result \
 	-Wno-unused-value \
 	-Wno-unused-function \
 	-Wno-sign-compare \
-        -D BOOST_COROUTINES_NO_DEPRECATION_WARNING
+        -D BOOST_COROUTINES_NO_DEPRECATION_WARNING \
+		${STEWFLAGS} \
 	#-Winline
+
 
 LDFLAGS := ${ENABLE_DGB} ${LTO} -O2 -libverbs -lrt -pthread -lmemcached -lnuma -g \
 	-lpapi -lboost_system -lboost_coroutine -lboost_thread
@@ -42,7 +48,7 @@ src := ibsetup.o memcached.o \
 #${mica_src} : CPPFLAGS += ${MICA_DEBUG}
 
 init: ${src}
-	${LD} -o $@ $^ ${LDFLAGS} ${CPPFLAGS}
+	${LD} -o $@ $^ ${LDFLAGS} ${CPPFLAGS} ${STEWFLAGS}
 
 PHONY: clean
 clean:

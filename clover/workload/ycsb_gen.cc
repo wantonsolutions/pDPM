@@ -1,8 +1,8 @@
-// Your First C++ Program
-
 #include <iostream>
 #include <inttypes.h>
 #include <assert.h>
+#include <math.h> 
+#include "zipf.cc"
 
 #define READ 0
 #define WRITE 1
@@ -21,17 +21,21 @@ const static char *ycsb_str[] = {"a", "b", "c"};
 enum distribution
 {
     uniform_random = 0,
+    zipf_dist = 1,
 };
 
-const static char *dist_str[] = {"Uniform Random"};
+const static char *dist_str[] = {"uniform", "zipf"};
 
 char ycsb_string[256];
 int global_threads = 8;
-workload global_workload = ycsb_b;
+workload global_workload = ycsb_c;
 distribution global_distribution = uniform_random;
+//distribution global_distribution = zipf_dist;
 int global_keyspace_size = 100000;
+//int global_keyspace_size = 100;
 
 int debug = 0;
+
 
 int get_operation(workload wl)
 {
@@ -79,6 +83,10 @@ uint64_t get_key(distribution dist, int size)
     case uniform_random:
         key = rand() % size;
         break;
+    case zipf_dist:
+        key = zipf(1.0,size);
+        //fprintf(stdout, "wrote zipf key %"PRIu64"\n",key);
+        break;
     default:
         fprintf(stderr, "Unimplemented ycsb distribution %d", (int)dist);
         exit(EXIT_FAILURE);
@@ -115,9 +123,10 @@ int write_workload(const char *filename, int size, workload wl, distribution dis
     return 0;
 }
 
-void set_filename(char *ycsb_string, workload wl, int thread_num)
+void set_filename(char *ycsb_string, workload wl, distribution dist, int thread_num)
 {
     assert(ycsb_string);
+    //sprintf(ycsb_string, "ycsb/workload%s_%s_%d", ycsb_str[wl],dist_str[dist], thread_num);
     sprintf(ycsb_string, "ycsb/workload%s_%d", ycsb_str[wl], thread_num);
     return;
 }
@@ -126,9 +135,10 @@ int write_thread_workload(int thread_count, int size, workload wl, distribution 
 {
     for (int i = 0; i < thread_count; i++)
     {
-        set_filename((char *)ycsb_string, ycsb_b, i);
+        set_filename((char *)ycsb_string, wl, dist,i);
         write_workload(ycsb_string, size, wl, dist);
     }
+    return 0;
 }
 
 int main()
@@ -144,6 +154,9 @@ int main()
         dist_str[global_distribution],
         global_keyspace_size);
 
+    if (global_distribution == zipf_dist) {
+        rand_val(1.0);
+    }
     write_thread_workload(global_threads, global_keyspace_size, global_workload, global_distribution);
     return EXIT_SUCCESS;
 }
