@@ -67,9 +67,9 @@ void memcached_publish_rcqp(struct ib_inf *inf, int num, const char *qp_name) {
   if (RSEC_NETWORK_MODE == RSEC_NETWORK_ROCE) {
     qp_attr.remote_gid = inf->local_gid;
   }
-  // printf("rc_publish: %d %s %d %d %lu %lu\n",
-  //        num, qp_name, qp_attr.lid, qp_attr.qpn, qp_attr.buf_addr,
-  //        qp_attr.rkey);
+   printf("rc_publish: %d %s %d %d %lu %u\n",
+          num, qp_name, qp_attr.lid, qp_attr.qpn, qp_attr.buf_addr,
+          qp_attr.rkey);
   memcached_publish(qp_attr.name, &qp_attr, sizeof(struct ib_qp_attr));
 }
 
@@ -99,6 +99,8 @@ void memcached_publish_udqp(struct ib_inf *inf, int num, const char *qp_name) {
   qp_attr.lid = ib_get_local_lid(inf->dgram_qp[num]->context, inf->dev_port_id);
   qp_attr.qpn = inf->dgram_qp[num]->qp_num;
   qp_attr.sl = P15_UD_SL;
+
+  printf("Publishing %s with lid %d\n",qp_attr.name,qp_attr.lid);
   memcached_publish(qp_attr.name, &qp_attr, sizeof(struct ib_qp_attr));
 }
 

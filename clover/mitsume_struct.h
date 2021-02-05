@@ -753,7 +753,6 @@ struct mitsume_msg_header {
   int src_id;
   int des_id;
   uint32_t thread_id;
-  ///////
   ptr_attr reply_attr;
 };
 

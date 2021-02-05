@@ -712,10 +712,12 @@ int userspace_one_read(struct ib_inf *ib_ctx, uint64_t wr_id,
   wr.send_flags = IBV_SEND_SIGNALED;
   wr.wr.rdma.remote_addr = remote_mr->addr + offset;
   wr.wr.rdma.rkey = remote_mr->rkey;
-  // MITSUME_PRINT("%llu:%llx:%llx\n", (unsigned long long int)wr.wr_id,
-  // (unsigned long long int) test_sge.addr, (unsigned long long int)
-  // test_sge.lkey); ret = ibv_post_send(ib_ctx->conn_qp[remote_mr->machine_id],
-  // &wr, &bad_send_wr);
+
+  //MITSUME_PRINT("%llu:%llx:%llx\n", (unsigned long long int)wr.wr_id,
+  //(unsigned long long int) test_sge.addr, (unsigned long long int)
+  // test_sge.lkey);
+
+  //ret = ibv_post_send(ib_ctx->conn_qp[remote_mr->machine_id],&wr, &bad_send_wr);
   int qp_idx = wr_id_to_qp_index(wr_id, remote_mr->machine_id);
   ret = ibv_post_send(ib_ctx->conn_qp[qp_idx], &wr, &bad_send_wr);
   if (ret)

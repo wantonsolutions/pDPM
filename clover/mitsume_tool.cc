@@ -815,6 +815,7 @@ int result_list[MITSUME_MAX_PARALLEL_REQUEST]={0};
       internal_sge[1].length = mitsume_con_alloc_pointer_to_size(
           query->ptr.pointer, query->replication_factor);
 
+
       // 0 for header
       // 1 for data
       // 2 for crc
@@ -824,6 +825,8 @@ int result_list[MITSUME_MAX_PARALLEL_REQUEST]={0};
           &local_ctx_clt->all_lh_attr[MITSUME_GET_PTR_LH(query->ptr.pointer)];
 
 #ifdef MITSUME_DISABLE_CRC
+      //printf("pointer chaising sge[0] len = %d\n",internal_sge[0].length);
+      //printf("pointer chaising sge[1] len = %d\n",internal_sge[1].length);
       userspace_one_read_sge(ib_ctx, memory_wr_id, remote_mr, 0, internal_sge,
                              2);
 #else
@@ -918,6 +921,7 @@ int result_list[MITSUME_MAX_PARALLEL_REQUEST]={0};
             read_mr = ibv_reg_mr(ib_ctx->pd, read_space, 40960,
                                  MITSUME_MR_PERMISSION);
             read_wr_id = mitsume_local_thread_get_wr_id(local_inf);
+
             userspace_one_read(ib_ctx, read_wr_id, read_mr,
                                sizeof(struct mitsume_ptr) *
                                    query->replication_factor,
@@ -1281,10 +1285,13 @@ int mitsume_tool_read(struct mitsume_consumer_metadata *thread_metadata,
   internal_sge[0].length =
       sizeof(struct mitsume_ptr) * query.replication_factor;
   internal_sge[0].lkey = local_inf->chase_empty_mr[coro_id].lkey;
+  //printf("length of sg[0] %d\n",internal_sge[0].length);
+
   // internal_sge[1].addr = (uintptr_t)read_addr;
   internal_sge[1].addr = (uint64_t)local_inf->user_output_space[coro_id];
   internal_sge[1].length = mitsume_con_alloc_pointer_to_size(
       query.ptr.pointer, query.replication_factor);
+  //printf("length of sg[1] %d\n",internal_sge[1].length);
   internal_sge[1].lkey = local_inf->user_output_mr[coro_id]->lkey;
 #ifdef MITSUME_DISABLE_CRC
 #else
@@ -1330,6 +1337,7 @@ int mitsume_tool_read(struct mitsume_consumer_metadata *thread_metadata,
   }
 
   non_latest_flag = 0;
+  //printf("about to pointer chase\n");
   chasing_return = mitsume_tool_pointer_chasing(
       thread_metadata, key, query_ptr, internal_sge_ptr, checking_data, mode,
       &hashtable_result, non_latest_flag, 0, NULL, coro_id, yield);
@@ -1910,14 +1918,19 @@ int mitsume_tool_write(struct mitsume_consumer_metadata *thread_metadata,
   for (per_replication = 0; per_replication < query.replication_factor;
        per_replication++) {
     tar_sge = sge_list[per_replication];
+    //STEW - pointers to replicatd data??
     tar_sge[0].addr = (uintptr_t)meshptr_list[per_replication];
     tar_sge[0].length = sizeof(struct mitsume_ptr) * (query.replication_factor);
     tar_sge[0].lkey = local_inf->meshptr_mr[coro_id].lkey;
-
+    //The data entry??
     tar_sge[1].addr = (uint64_t)local_inf->user_input_space[coro_id];
     tar_sge[1].length = size;
     tar_sge[1].lkey = local_inf->user_input_mr[coro_id]->lkey;
 
+    //add the key to the US
+    *(uint64_t *)(tar_sge[1].addr) = (uint64_t)key;
+
+    //The CRC??
     tar_sge[2].addr = (uintptr_t)empty_base;
     tar_sge[2].length = mitsume_con_alloc_pointer_to_size(
                             newspace.replication_ptr[per_replication].pointer,
@@ -1967,6 +1980,7 @@ int mitsume_tool_write(struct mitsume_consumer_metadata *thread_metadata,
     tar_sge = sge_list[per_replication];
     if (use_patch_flag == MITSUME_TOOL_WITH_PATCH) {
 #ifdef MITSUME_DISABLE_CRC
+      //printf("Writing THREE entries from the scatter gather list \n");
       userspace_one_write_sge(ib_ctx, wr_id[per_replication],
                               remote_mr[per_replication], 0, tar_sge, 3);
 #else
@@ -1975,6 +1989,7 @@ int mitsume_tool_write(struct mitsume_consumer_metadata *thread_metadata,
 #endif
     } else {
 #ifdef MITSUME_DISABLE_CRC
+      //printf("Writing TWO entries from the scatter gather list \n");
       userspace_one_write_sge(ib_ctx, wr_id[per_replication],
                               remote_mr[per_replication], 0, tar_sge, 2);
 #else

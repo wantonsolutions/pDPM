@@ -1,6 +1,6 @@
 #ifndef RSEC_UTIL_HEADER
 #define RSEC_UTIL_HEADER
-#include <cstdio>
+//#include <cstdio.h>
 void RSEC_PRINT_TMP(const char *fmt, ...);
 #define RSEC_WHOLE_DEBUG
 #ifdef RSEC_WHOLE_DEBUG

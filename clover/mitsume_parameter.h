@@ -1,6 +1,6 @@
 #ifndef MITSUME_PARAMETER_HEADER
 #define MITSUME_PARAMETER_HEADER
-#include <cstdint>
+//#include <cstdint>
 #define MITSUME_MR_PERMISSION                                                  \
   (IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ | \
    IBV_ACCESS_REMOTE_ATOMIC)

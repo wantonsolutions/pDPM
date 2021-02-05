@@ -279,6 +279,9 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
         key = i;
         //key = (uint64_t)target_key[i];
         memset(write, 0x31 + (key % 30), MITSUME_BENCHMARK_SIZE);
+        //Stew inject this to put the key in on the first set of writes
+        *(uint64_t *)(write) = (uint64_t)key;
+
         ret = mitsume_tool_open(thread_metadata, key, write,
                                 MITSUME_BENCHMARK_SIZE,
                                 MITSUME_BENCHMARK_REPLICATION);
@@ -588,7 +591,8 @@ int mitsume_benchmark_thread(int thread_num,
 
 int mitsume_benchmark(struct mitsume_ctx_clt *local_ctx_clt) {
   //mitsume_benchmark_thread(1, local_ctx_clt, &mitsume_benchmark_latency);
-  mitsume_benchmark_thread(MITSUME_BENCHMARK_THREAD_NUM, local_ctx_clt, &mitsume_benchmark_ycsb);
+  //mitsume_benchmark_thread(MITSUME_BENCHMARK_THREAD_NUM, local_ctx_clt, &mitsume_benchmark_ycsb);
+  mitsume_benchmark_thread(2, local_ctx_clt, &mitsume_benchmark_ycsb);
   // mitsume_benchmark_thread(MITSUME_BENCHMARK_THREAD_NUM, local_ctx_clt,
   // &mitsume_benchmark_coroutine);
   // mitsume_benchmark_thread(MITSUME_TEST_LOAD_WRITE_NUM+MITSUME_TEST_LOAD_READ_NUM,

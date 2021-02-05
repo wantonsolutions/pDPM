@@ -29,8 +29,8 @@ const static char *dist_str[] = {"uniform", "zipf"};
 char ycsb_string[256];
 int global_threads = 8;
 workload global_workload = ycsb_c;
-distribution global_distribution = uniform_random;
-//distribution global_distribution = zipf_dist;
+//distribution global_distribution = uniform_random;
+distribution global_distribution = zipf_dist;
 int global_keyspace_size = 100000;
 //int global_keyspace_size = 100;
 
@@ -111,7 +111,8 @@ int write_workload(const char *filename, int size, workload wl, distribution dis
     for (int i = 0; i < size; i++)
     {
         op = get_operation(wl);
-        key = get_key(dist, size);
+        for (key = get_key(dist, size); key >= (uint64_t)size;key = get_key(dist,size)) {}
+
         if (debug)
         {
             printf("Op:%d Key:%" PRIu64 "\n", op, key);
