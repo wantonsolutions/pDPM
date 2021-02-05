@@ -1,4 +1,5 @@
 #include "ibsetup.h"
+#include "inttypes.h"
 
 std::unordered_map<uint64_t, unsigned int> WR_ID_WAITING_TABLE;
 
@@ -548,6 +549,21 @@ int ib_connect_qp(struct ib_inf *inf, int qp_index, struct ib_qp_attr *dest)
     attr.ah_attr.grh.dgid = dest->remote_gid;
     attr.ah_attr.grh.sgid_index = RSEC_SGID_INDEX;
     attr.ah_attr.grh.hop_limit = 1;
+
+    #ifdef STEW_TWO_MACHINE_INTERPOSE
+      //Send all of the requests to a remote software switch
+      attr.ah_attr.grh.dgid.global.interface_id =  STEW_TWO_MACHINE_INTERPOSE_SW_SWITCH_INTERFACE;
+
+      //attr.ah_attr.grh.dgid.global.subnet_prefix = STEW_TWO_MACHINE_INTERPOSE_SW_SWITCH_SUBNET_PREFIX;
+      attr.ah_attr.grh.dgid.global.subnet_prefix = 0;
+      //attr.ah_attr.grh.dgid.global.subnet_prefix = 0xFFF;
+
+    #endif
+
+    //printf("\n\nGID NUMBER used in IB setup %"PRIx64"\n\n",attr.ah_attr.grh.dgid.global.subnet_prefix);
+    printf("\n\nSubnet Prefix %llx\n\n",attr.ah_attr.grh.dgid.global.subnet_prefix);
+    printf("\n\nInterface_id %llx\n\n",attr.ah_attr.grh.dgid.global.interface_id);
+    //printf("\n\nRemote Gid %llx\n\n",attr.ah_attr.grh.dgid.raw);
   }
   if (ibv_modify_qp(inf->conn_qp[qp_index], &attr,
                     IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU |
@@ -891,7 +907,7 @@ int userspace_one_poll(struct ib_inf *ib_ctx, uint64_t wr_id,
       // MITSUME_PRINT("check %llu\n", (unsigned long long int)wc[comps].wr_id);
       userspace_done_wr_table_value(wc[comps].wr_id);
     }
-    if (count > 10000 && count % 100000 == 0) {
+    if (count > 10000 && count % 10000000 == 0) {
       // printf("%d %llu\n", count, (unsigned long long int)wr_id);
       MITSUME_PRINT_ERROR("polling too many times %d %llu\n", count,
                           (unsigned long long int)wr_id);

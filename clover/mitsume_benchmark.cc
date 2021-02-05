@@ -224,6 +224,7 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
   struct thread_local_inf *local_inf = thread_metadata->local_inf;
   int client_id = get_client_id(thread_metadata->local_ctx_clt);
   char ycsb_string[MITSUME_BENCHMARK_WORKLOAD_NAME_LEN];
+  char ycsb_zipf_string[MITSUME_BENCHMARK_WORKLOAD_NAME_LEN];
   int target_set;
   mitsume_key key;
   int test_size = MITSUME_BENCHMARK_SIZE;
@@ -288,18 +289,29 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
       MITSUME_PRINT("finish open\n");
     }
   }
-  
-  switch (MITSUME_YCSB_DISTRIBUTION_MODE) {
-  case MITSUME_YCSB_DISTRIBUTION_MODE_UNIFORM:
-    MITSUME_PRINT("Uniform Distribution\n");
-    break;
-  case MITSUME_YCSB_DISTRIBUTION_MODE_ZIPF:
-    MITSUME_PRINT("Zipf Distribution\n");
-    rand_val(1.0);
-    for (int i=0;i<MITSUME_YCSB_KEY_RANGE;i++) {
-      target_key[i] = (uint64_t)zipf(2.0,MITSUME_YCSB_KEY_RANGE);
+
+  // Populate the Zipf distribution so it does not need to be calculated at
+  // runtime I'm doing this after all of the keys have been put to the remote
+  // location so that I don't get key errors at runtime.
+
+  if (MITSUME_YCSB_DISTRIBUTION_MODE == MITSUME_YCSB_DISTRIBUTION_MODE_ZIPF) {
+    MITSUME_PRINT("ZIPF-MODE ENABLED reading second file to load workload");
+    switch (MITSUME_YCSB_OP_MODE) {
+    case MITSUME_YCSB_MODE_A:
+      sprintf(ycsb_zipf_string, MITSUME_YCSB_WORKLOAD_STRING, "a", "zipf", target_set);
+      break;
+    case MITSUME_YCSB_MODE_B:
+      sprintf(ycsb_zipf_string, MITSUME_YCSB_WORKLOAD_STRING, "b", "zipf", target_set);
+      break;
+    case MITSUME_YCSB_MODE_C:
+      sprintf(ycsb_zipf_string, MITSUME_YCSB_WORKLOAD_STRING, "c", "zipf", target_set);
+      break;
+    default:
+      MITSUME_PRINT_ERROR("wrong mode %d\n", MITSUME_YCSB_OP_MODE);
+      exit(1);
     }
-    break;
+    mitsume_test_read_ycsb(ycsb_zipf_string, &op_key, &target_key);
+    MITSUME_INFO("%d read %d\n", thread_metadata->thread_id, target_set);
   }
 
   mitsume_sync_barrier_global();
@@ -315,13 +327,12 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
   MITSUME_PRINT("test size: %d\n", test_size);
 
   while (!end_flag) {
-    if (MITSUME_YCSB_DISTRIBUTION_MODE == MITSUME_YCSB_DISTRIBUTION_MODE_UNIFORM) {
-      key = (uint64_t)target_key[i];
-    } else if (MITSUME_YCSB_DISTRIBUTION_MODE == MITSUME_YCSB_DISTRIBUTION_MODE_ZIPF) {
-        key = (uint64_t)zipf(0.99,MITSUME_YCSB_KEY_RANGE);
-    }
-    if (key == 0) {
+    key = (uint64_t)target_key[i];
+    if (key <= 0 || key >= MITSUME_YCSB_KEY_RANGE) {
       i++;
+      if (i >= MITSUME_YCSB_KEY_RANGE) {
+        i = 0;
+      }
       continue;
     }
     //cout << "key: " << key << endl;
@@ -342,11 +353,13 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
     }
     if (ret != MITSUME_SUCCESS) {
       MITSUME_INFO("error %lld %d\n", (unsigned long long int)key, ret);
+      i++;
+      continue;
     }
     // if(i>0&&i%200000==0)
     //    MITSUME_PRINT("%d-%d write\n", thread_metadata->thread_id, i);
     i++;
-    if (i >= MITSUME_YCSB_SIZE) {
+    if (i >= MITSUME_YCSB_KEY_RANGE) {
       i = 0;
     }
     local_op++;
@@ -574,9 +587,8 @@ int mitsume_benchmark_thread(int thread_num,
 }
 
 int mitsume_benchmark(struct mitsume_ctx_clt *local_ctx_clt) {
-  // mitsume_benchmark_thread(1, local_ctx_clt, &mitsume_benchmark_latency);
-  mitsume_benchmark_thread(MITSUME_BENCHMARK_THREAD_NUM, local_ctx_clt,
-                           &mitsume_benchmark_ycsb);
+  //mitsume_benchmark_thread(1, local_ctx_clt, &mitsume_benchmark_latency);
+  mitsume_benchmark_thread(MITSUME_BENCHMARK_THREAD_NUM, local_ctx_clt, &mitsume_benchmark_ycsb);
   // mitsume_benchmark_thread(MITSUME_BENCHMARK_THREAD_NUM, local_ctx_clt,
   // &mitsume_benchmark_coroutine);
   // mitsume_benchmark_thread(MITSUME_TEST_LOAD_WRITE_NUM+MITSUME_TEST_LOAD_READ_NUM,
