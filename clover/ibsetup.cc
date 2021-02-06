@@ -561,8 +561,8 @@ int ib_connect_qp(struct ib_inf *inf, int qp_index, struct ib_qp_attr *dest)
     #endif
 
     //printf("\n\nGID NUMBER used in IB setup %"PRIx64"\n\n",attr.ah_attr.grh.dgid.global.subnet_prefix);
-    printf("\n\nSubnet Prefix %llx\n\n",attr.ah_attr.grh.dgid.global.subnet_prefix);
-    printf("\n\nInterface_id %llx\n\n",attr.ah_attr.grh.dgid.global.interface_id);
+    //printf("\n\nSubnet Prefix %llx\n\n",attr.ah_attr.grh.dgid.global.subnet_prefix);
+    //printf("\n\nInterface_id %llx\n\n",attr.ah_attr.grh.dgid.global.interface_id);
     //printf("\n\nRemote Gid %llx\n\n",attr.ah_attr.grh.dgid.raw);
   }
   if (ibv_modify_qp(inf->conn_qp[qp_index], &attr,
@@ -688,7 +688,8 @@ int userspace_one_send(struct ibv_qp *qp, struct ibv_mr *local_mr,
 }
 
 inline int wr_id_to_qp_index(uint64_t wr_id, int remote_machine_id) {
-  int ret = (remote_machine_id * P15_PARALLEL_RC_QPS) + (wr_id & 0x7);
+  //int ret = (remote_machine_id * P15_PARALLEL_RC_QPS) + (wr_id & 0x7);
+  int ret = (remote_machine_id * P15_PARALLEL_RC_QPS) + (wr_id & (P15_PARALLEL_RC_QPS-1));
   MITSUME_STAT_ARRAY_ADD(wr_id & 0x7, 1);
   return ret;
   // return (remote_machine_id*P15_PARALLEL_RC_QPS)+(wr_id&0x7);

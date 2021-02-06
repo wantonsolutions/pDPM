@@ -47,7 +47,8 @@ using namespace std;
 
 #define P15_ID_SHIFT 10
 
-#define P15_PARALLEL_RC_QPS 8
+//#define P15_PARALLEL_RC_QPS 8
+#define P15_PARALLEL_RC_QPS 32
 #define P15_PARALLEL_UD_QPS 1
 #define P15_MAX_INLINE 256
 

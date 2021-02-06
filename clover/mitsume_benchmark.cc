@@ -238,8 +238,10 @@ void *mitsume_benchmark_ycsb(void *input_metadata) {
       thread_metadata->thread_id + (client_id)*MITSUME_BENCHMARK_THREAD_NUM;
 
   MITSUME_PRINT("Alive on thread %d\n",thread_metadata->thread_id);
-
-  stick_this_thread_to_core((2 * thread_metadata->thread_id) + 1);
+  //uint32_t core =(2 * thread_metadata->thread_id) + 1;
+  uint32_t core =(2 * thread_metadata->thread_id);
+  stick_this_thread_to_core(core);
+  MITSUME_PRINT("STICKING THREAD %d ON CORE %d\n", thread_metadata->thread_id, core );
 
   mitsume_sync_barrier_global();
   memset(read, 0, 4096);
@@ -592,7 +594,7 @@ int mitsume_benchmark_thread(int thread_num,
 int mitsume_benchmark(struct mitsume_ctx_clt *local_ctx_clt) {
   //mitsume_benchmark_thread(1, local_ctx_clt, &mitsume_benchmark_latency);
   //mitsume_benchmark_thread(MITSUME_BENCHMARK_THREAD_NUM, local_ctx_clt, &mitsume_benchmark_ycsb);
-  mitsume_benchmark_thread(2, local_ctx_clt, &mitsume_benchmark_ycsb);
+  mitsume_benchmark_thread(16, local_ctx_clt, &mitsume_benchmark_ycsb);
   // mitsume_benchmark_thread(MITSUME_BENCHMARK_THREAD_NUM, local_ctx_clt,
   // &mitsume_benchmark_coroutine);
   // mitsume_benchmark_thread(MITSUME_TEST_LOAD_WRITE_NUM+MITSUME_TEST_LOAD_READ_NUM,

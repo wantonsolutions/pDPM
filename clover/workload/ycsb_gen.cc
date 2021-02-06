@@ -27,8 +27,9 @@ enum distribution
 const static char *dist_str[] = {"uniform", "zipf"};
 
 char ycsb_string[256];
-int global_threads = 8;
-workload global_workload = ycsb_c;
+int global_threads = 32;
+//int global_threads = 1;
+workload global_workload = ycsb_a;
 //distribution global_distribution = uniform_random;
 distribution global_distribution = zipf_dist;
 int global_keyspace_size = 100000;
